@@ -1,0 +1,20 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@mysten/sui.js": "^0.54.1",
+    "dotenv": "^16.4.7",
+    "mysql2": "^3.12.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "depcheck": "^1.4.7"
+  }
+}
