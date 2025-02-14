@@ -10,3 +10,5 @@ export const WITHDRAW_TOKEN = "withdraw_token";
 export const NEW_WALLET = "new_wallet";
 export const NEW_WALLETS = "new_wallets";
 export const CONNECT_WALLET = "connect_wallet";
+export const SELECT_WALLET = "select_wallet";
+export const SELECT_WITHDRAW_WALLET = "select_w_wallet";
