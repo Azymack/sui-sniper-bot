@@ -81,9 +81,9 @@ bot.on("callback_query", async (ctx) => {
             parse_mode: "HTML",
             reply_markup: reply.reply_markup,
           });
-          // if (!reply.reply_markup.force_reply) {
-          //   bot.stop();
-          // }
+          if (!reply.reply_markup.force_reply) {
+            bot.stop();
+          }
         });
         break;
       case SELL_TOKEN:
@@ -102,9 +102,9 @@ bot.on("callback_query", async (ctx) => {
             parse_mode: "HTML",
             reply_markup: reply.reply_markup,
           });
-          // if (!reply.reply_markup.force_reply) {
-          //   bot.stop();
-          // }
+          if (!reply.reply_markup.force_reply) {
+            bot.stop();
+          }
         });
         break;
       case INPUT_BUY_AMOUNT:
@@ -125,6 +125,7 @@ bot.on("callback_query", async (ctx) => {
               parse_mode: "HTML",
               reply_markup: reply.reply_markup,
             });
+            bot.stop();
           }
         });
         break;
@@ -212,6 +213,7 @@ bot.on("callback_query", async (ctx) => {
                 reply_markup: reply.reply_markup,
               });
               console.log("reply");
+              bot.stop();
             } else {
               if (/^\d*\.?\d+$/.test(ctx.message.text)) {
                 amount = ctx.message.text;
