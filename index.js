@@ -1,4 +1,4 @@
-const { Telegraf, Scenes } = require("telegraf");
+const { Telegraf, Scenes, session } = require("telegraf");
 const {
   replyMainMenu,
   replyWalletMenu,
@@ -36,6 +36,17 @@ const customBuyScene = new Scenes.BaseScene("customBuy");
 const sellScene = new Scenes.BaseScene("sell");
 const customSellScene = new Scenes.BaseScene("customSell");
 const withdrawScene = new Scenes.BaseScene("withdraw");
+
+// Register scenes
+const stage = new Scenes.Stage([
+  buyScene,
+  customBuyScene,
+  sellScene,
+  customSellScene,
+  withdrawScene,
+]);
+bot.use(session());
+bot.use(stage.middleware());
 
 // Start Command
 bot.start(async (ctx) => {
