@@ -127,6 +127,7 @@ bot.on("callback_query", async (ctx) => {
             });
           }
         });
+        break;
       case WALLET_MENU:
         reply = await replyWalletMenu(ctx);
         await ctx.editMessageText(reply.html, {
