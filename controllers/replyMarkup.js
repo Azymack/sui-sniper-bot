@@ -11,6 +11,11 @@ const {
   CONNECT_WALLET,
   SELECT_WALLET,
   SELECT_WITHDRAW_WALLET,
+  EXECUTE_WITHDRAW,
+  CANCEL_WITHDRAW,
+  SELECT_BUY_WALLET,
+  INPUT_BUY_AMOUNT,
+  EXECUTE_BUY,
 } = require("../config/commands");
 const { shortenAddress, numberToKOrM } = require("../lib/utils");
 const { checkUserExists, createUser } = require("./auth");
@@ -19,16 +24,45 @@ const {
   createWallet,
   getSuiBalance,
   getWallet,
+  validateWithdrawSUI,
+  executeWithdrawSUI,
+  getTokenBalance,
 } = require("./wallets");
+const { accountAddrOnMainnet, suiAddr } = require("../config/const");
+const con = require("../db.js");
+const { buy } = require("./swap.js");
 require("dotenv").config();
 
+let sessionData;
+const initSession = async () => {
+  const [rows] = await con.promise().query("SELECT tg_id FROM users");
+  let sessionObject = {};
+  rows.forEach((row) => {
+    sessionObject[row.tg_id] = {
+      withdraw: {
+        walletId: 0,
+        walletAddress: "",
+        tokenAddress: "",
+        amount: 0,
+      },
+      buy: {
+        walletId: 0,
+        tokenAddress: "",
+      },
+    };
+  });
+  sessionData = sessionObject;
+  console.log(sessionData);
+  return;
+};
+initSession();
+
 const replyMainMenu = async (ctx) => {
-  const user = ctx.from;
-  console.log(`User Info: ${JSON.stringify(user)}`);
-  const userExists = await checkUserExists(user.id);
-  if (!userExists) {
+  let user = await checkUserExists(ctx.from.id);
+  if (!user) {
     await createUser(user);
   }
+  user = await checkUserExists(ctx.from.id);
 
   return {
     html: `Welcome to <b>Sui Sniper Bot</b>! Choose an action:`,
@@ -40,7 +74,7 @@ const replyMainMenu = async (ctx) => {
         ],
         [{ text: "💵 Wallets", callback_data: WALLET_MENU }],
         [
-          { text: "Withraw SUI", callback_data: WITHDRAW_SUI },
+          { text: "Withdraw SUI", callback_data: WITHDRAW_SUI },
           { text: "Withdraw Token", callback_data: WITHDRAW_TOKEN },
         ],
       ],
@@ -52,7 +86,6 @@ const replyWalletMenu = async (ctx) => {
   const user = ctx.from;
   console.log(ctx, user, user.id);
   const wallets = await getWallets(user.id);
-  console.log(wallets, "wallets");
   for (let i in wallets) {
     let balance = await getSuiBalance(wallets[i].public_key);
     wallets[i].balance = balance;
@@ -134,7 +167,6 @@ const replyWithdrawSUIMenu = async (ctx, walletId) => {
   const user = ctx.from;
   console.log(ctx, user, user.id);
   const wallets = await getWallets(user.id);
-  console.log(wallets, "wallets");
   for (let i in wallets) {
     let balance = await getSuiBalance(wallets[i].public_key);
     wallets[i].balance = balance;
@@ -142,7 +174,7 @@ const replyWithdrawSUIMenu = async (ctx, walletId) => {
 
   return {
     html: `Selected Wallet: \n<code>${
-      wallets.find((wallet) => wallet.id === walletId)?.public_key
+      wallets.find((wallet) => wallet.id === walletId)?.public_key || ""
     }</code>`,
     reply_markup: {
       inline_keyboard: [
@@ -159,20 +191,78 @@ const replyWithdrawSUIMenu = async (ctx, walletId) => {
         }),
         [
           { text: "← Main Menu", callback_data: MAIN_MENU },
-          { text: "→ Continue", callback_data: `${WITHDRAW_SUI}_continue` },
+          { text: "→ Continue", callback_data: `${WITHDRAW_SUI}_${walletId}` },
         ],
       ],
     },
   };
 };
 
-const replyWithdrawResult = async (ctx, walletId, amount) => {
-  console.log(ctx, walletId, amount);
+const replyWithdrawSUIConfirm = async (ctx, walletId, amount) => {
+  console.log(sessionData, "session");
+  const walletAddress = ctx.message.text;
+  let html, reply_markup;
+  const res = await validateWithdrawSUI(walletAddress, walletId, amount);
+  if (res.error) {
+    html = res.message;
+    reply_markup = { inline_keyboard: [] };
+  } else {
+    // session
+    sessionData[`${ctx.from.id}`].withdraw.walletId = walletId;
+    sessionData[`${ctx.from.id}`].withdraw.walletAddress = walletAddress;
+    sessionData[`${ctx.from.id}`].withdraw.tokenAddress = suiAddr;
+    sessionData[`${ctx.from.id}`].withdraw.amount = amount;
+
+    html = `Please confirm the withdrawal of ${amount} SUI to address <a href="${accountAddrOnMainnet}/${walletAddress}">${shortenAddress(
+      walletAddress
+    )}</a> \n`;
+    reply_markup = {
+      inline_keyboard: [
+        [{ text: "✅ Confirm", callback_data: EXECUTE_WITHDRAW }],
+        [{ text: "❌ Cancel", callback_data: CANCEL_WITHDRAW }],
+      ],
+    };
+  }
+  return { html, reply_markup };
 };
 
-const replyBuyToken = async (ctx) => {
-  const tokenAddress = ctx.message.text;
-  console.log(`${process.env.DEXSCREENER_TOKEN_DETAIL}/${tokenAddress}`);
+const replyWithdrawSUIResult = async (ctx) => {
+  console.log(sessionData, "session");
+  let html, reply_markup;
+  if (
+    sessionData[`${ctx.from.id}`].withdraw.walletId &&
+    sessionData[`${ctx.from.id}`].withdraw.tokenAddress === suiAddr
+  ) {
+    await executeWithdrawSUI(
+      sessionData[`${ctx.from.id}`].withdraw.walletId,
+      sessionData[`${ctx.from.id}`].withdraw.walletAddress,
+      sessionData[`${ctx.from.id}`].withdraw.amount
+    );
+
+    html = `${
+      sessionData[`${ctx.from.id}`].withdraw.amount
+    } SUI was transfered from to address <a href="${accountAddrOnMainnet}/${
+      sessionData[`${ctx.from.id}`].withdraw.walletAddress
+    }">${shortenAddress(
+      sessionData[`${ctx.from.id}`].withdraw.walletAddress
+    )}</a> \n`;
+    reply_markup = {
+      inline_keyboard: [],
+    };
+    return { html, reply_markup };
+  }
+};
+
+const replyBuyToken = async (ctx, walletId) => {
+  walletId = Number(walletId);
+  console.log(sessionData);
+  let tokenAddress, tokenInfo;
+  if (walletId) {
+    tokenAddress = sessionData[`${ctx.from.id}`].buy.tokenAddress;
+    sessionData[`${ctx.from.id}`].buy.walletId = walletId;
+  } else {
+    tokenAddress = ctx.message.text;
+  }
   const res = await axios.get(
     `${process.env.DEXSCREENER_TOKEN_DETAIL}/${tokenAddress}`
   );
@@ -184,34 +274,110 @@ const replyBuyToken = async (ctx) => {
       },
     };
   } else {
-    const tokenInfo = res.data.pairs.filter(
-      (pair) => pair.chainId === "sui"
-    )[0];
+    sessionData[`${ctx.from.id}`].buy.tokenAddress = tokenAddress;
+    tokenInfo = res.data.pairs.filter((pair) => pair.chainId === "sui")[0];
     console.log(tokenInfo);
-    return {
-      html: `
-      <b>${tokenInfo.baseToken.name} - ${tokenInfo.baseToken.symbol}</b> \n
+  }
+
+  console.log(tokenInfo);
+
+  const wallets = await getWallets(ctx.from.id);
+  for (let i in wallets) {
+    let balance = await getSuiBalance(wallets[i].public_key);
+    let tokenBalance = await getTokenBalance(
+      wallets[i].public_key,
+      tokenAddress
+    );
+    wallets[i].balance = balance;
+    wallets[i].tokenBalance = tokenBalance;
+  }
+  const selectedWallet = wallets.find((wallet) => wallet.id === walletId);
+  console.log(selectedWallet);
+  return {
+    html: `
+    <b>${tokenInfo.baseToken.name} - ${tokenInfo.baseToken.symbol}</b> \n
+Selected Wallet: \n${
+      selectedWallet
+        ? `<code>${
+            wallets.find((wallet) => wallet.id === walletId)?.public_key || ""
+          }</code> | ${
+            wallets.find((wallet) => wallet.id === walletId)?.balance || ""
+          } SUI | ${
+            wallets.find((wallet) => wallet.id === walletId)?.tokenBalance || ""
+          } ${tokenInfo.baseToken.symbol}`
+        : "No wallet selected"
+    } 
 <b>Token Address:</b> \n<code>${tokenAddress}</code> \n
 <b>💵 Price:</b> $${tokenInfo.priceUsd}
 <b>💰 Market Cap:</b> $${numberToKOrM(tokenInfo.marketCap)}
 <b>💧 Liquidity:</b> $${numberToKOrM(tokenInfo.liquidity.usd)}`,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: `SuiScan`,
-              url: `https://suiscan.xyz/mainnet/coin/${tokenAddress}`,
-            },
-            { text: `🔃`, callback_data: "refresh" },
-            {
-              text: `📊 Chart`,
-              url: `https://dexscreener.com/sui/${tokenAddress}`,
-            },
-          ],
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: `📜 SuiScan`,
+            url: `https://suiscan.xyz/mainnet/coin/${tokenAddress}`,
+          },
+          { text: `🔃`, callback_data: "refresh" },
+          {
+            text: `📊 Chart`,
+            url: `https://dexscreener.com/sui/${tokenAddress}`,
+          },
         ],
-      },
-    };
+        ...wallets.map((wallet) => {
+          let checkbox = wallet.id === walletId ? `✅` : `◻`;
+          return [
+            {
+              text: `${checkbox} ${shortenAddress(wallet.public_key)} | ${
+                Number(wallet.balance).toFixed(2) || 0
+              } SUI`,
+              callback_data: `${SELECT_BUY_WALLET}_${wallet.id}`,
+            },
+          ];
+        }),
+        [
+          { text: `Buy 10 SUI`, callback_data: `${EXECUTE_BUY}_10` },
+          { text: `Buy 50 SUI`, callback_data: `${EXECUTE_BUY}_50` },
+        ],
+        [
+          { text: `Buy 100 SUI`, callback_data: `${EXECUTE_BUY}_100` },
+          { text: `Buy 200 SUI`, callback_data: `${EXECUTE_BUY}_200` },
+        ],
+        [
+          { text: `Buy 500 SUI`, callback_data: `${EXECUTE_BUY}_500` },
+          { text: `Buy 1000 SUI`, callback_data: `${EXECUTE_BUY}_1000` },
+        ],
+        [{ text: `Buy Custom SUI`, callback_data: INPUT_BUY_AMOUNT }],
+      ],
+    },
+  };
+};
+
+const replyExecuteBuy = async (ctx, amount) => {
+  let html, reply_markup;
+  if (!sessionData[`${ctx.from.id}`].buy.walletId) {
+    html = "Select wallet";
+    reply_markup = { inline_keyboard: [] };
+  } else {
+    const res = await buy(
+      sessionData[`${ctx.from.id}`].buy.tokenAddress,
+      amount,
+      sessionData[`${ctx.from.id}`].buy.walletId
+    );
+    if (res.success) {
+      html = `Transaction successful. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+      reply_markup = { inline_keyboard: [] };
+    } else {
+      if (res.digest) {
+        html = `Transaction failed. Please try again. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+        reply_markup = { inline_keyboard: [] };
+      } else {
+        html = "Unexpected Error";
+        reply_markup = { inline_keyboard: [] };
+      }
+    }
   }
+  return { html, reply_markup };
 };
 
 module.exports = {
@@ -220,6 +386,8 @@ module.exports = {
   replyIndividualWallet,
   replyCreateWallet,
   replyWithdrawSUIMenu,
-  replyWithdrawResult,
+  replyWithdrawSUIConfirm,
+  replyWithdrawSUIResult,
   replyBuyToken,
+  replyExecuteBuy,
 };

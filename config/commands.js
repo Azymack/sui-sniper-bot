@@ -12,3 +12,10 @@ export const NEW_WALLETS = "new_wallets";
 export const CONNECT_WALLET = "connect_wallet";
 export const SELECT_WALLET = "select_wallet";
 export const SELECT_WITHDRAW_WALLET = "select_w_wallet";
+export const EXECUTE_WITHDRAW = "execute_withdraw";
+export const CANCEL_WITHDRAW = "cancel_withdraw";
+
+// buy menu
+export const SELECT_BUY_WALLET = "select_b_wallet";
+export const INPUT_BUY_AMOUNT = "input_buy_amount";
+export const EXECUTE_BUY = "execute_buy";

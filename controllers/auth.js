@@ -6,7 +6,7 @@ const checkUserExists = async (tgId) => {
       .promise()
       .query("SELECT * FROM users WHERE tg_id = ?", [tgId]);
 
-    return rows.length > 0;
+    return rows[0];
   } catch (err) {
     console.error("checkUserExists error:", err);
     return false;
