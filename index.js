@@ -9,6 +9,7 @@ const {
   replyWithdrawSUIConfirm,
   replyWithdrawSUIResult,
   replyExecuteBuy,
+  replySellToken,
 } = require("./controllers/replyMarkup");
 const {
   BUY_TOKEN,
@@ -85,6 +86,27 @@ bot.on("callback_query", async (ctx) => {
           // }
         });
         break;
+      case SELL_TOKEN:
+        await ctx.reply(
+          "Reply to this message with the token address that you want to sell:",
+          {
+            reply_markup: {
+              force_reply: true,
+            },
+          }
+        );
+        // Listen for user's reply
+        bot.on("text", async (ctx) => {
+          reply = await replySellToken(ctx, 0);
+          await ctx.replyWithHTML(reply.html, {
+            parse_mode: "HTML",
+            reply_markup: reply.reply_markup,
+          });
+          // if (!reply.reply_markup.force_reply) {
+          //   bot.stop();
+          // }
+        });
+        break;
       case INPUT_BUY_AMOUNT:
         await ctx.replyWithHTML("Enter the amount of token you want to buy:", {
           parse_mode: "HTML",
@@ -105,9 +127,6 @@ bot.on("callback_query", async (ctx) => {
             });
           }
         });
-      case SELL_TOKEN:
-        await ctx.reply("You chose to sell a token.");
-        break;
       case WALLET_MENU:
         reply = await replyWalletMenu(ctx);
         await ctx.editMessageText(reply.html, {

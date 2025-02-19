@@ -1,4 +1,7 @@
-export const accountAddrOnMainnet = "https://suiscan.xyz/mainnet/account";
+const accountAddrOnMainnet = "https://suiscan.xyz/mainnet/account";
 
-export const suiAddr = "0x2::sui::SUI";
-export const suiDecimal = 1000000000;
+const suiAddr = "0x2::sui::SUI";
+const suiDecimal = 1000000000;
+const minGasBudget = 750000;
+
+module.exports = { accountAddrOnMainnet, suiAddr, suiDecimal, minGasBudget };

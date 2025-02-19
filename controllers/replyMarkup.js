@@ -16,6 +16,9 @@ const {
   SELECT_BUY_WALLET,
   INPUT_BUY_AMOUNT,
   EXECUTE_BUY,
+  SELECT_SELL_WALLET,
+  EXECUTE_SELL,
+  INPUT_SELL_AMOUNT,
 } = require("../config/commands");
 const { shortenAddress, numberToKOrM } = require("../lib/utils");
 const { checkUserExists, createUser } = require("./auth");
@@ -46,6 +49,10 @@ const initSession = async () => {
         amount: 0,
       },
       buy: {
+        walletId: 0,
+        tokenAddress: "",
+      },
+      sell: {
         walletId: 0,
         tokenAddress: "",
       },
@@ -353,6 +360,100 @@ Selected Wallet: \n${
   };
 };
 
+const replySellToken = async (ctx, walletId) => {
+  walletId = Number(walletId);
+  console.log(sessionData);
+  let tokenAddress, tokenInfo;
+  if (walletId) {
+    tokenAddress = sessionData[`${ctx.from.id}`].sell.tokenAddress;
+    sessionData[`${ctx.from.id}`].sell.walletId = walletId;
+  } else {
+    tokenAddress = ctx.message.text;
+  }
+  const res = await axios.get(
+    `${process.env.DEXSCREENER_TOKEN_DETAIL}/${tokenAddress}`
+  );
+  if (!res.data || !res.data.pairs) {
+    return {
+      html: `Token not found. Please try again.`,
+      reply_markup: {
+        force_reply: true,
+      },
+    };
+  } else {
+    sessionData[`${ctx.from.id}`].sell.tokenAddress = tokenAddress;
+    tokenInfo = res.data.pairs.filter((pair) => pair.chainId === "sui")[0];
+    console.log(tokenInfo);
+  }
+
+  console.log(tokenInfo);
+
+  const wallets = await getWallets(ctx.from.id);
+  for (let i in wallets) {
+    let balance = await getSuiBalance(wallets[i].public_key);
+    let tokenBalance = await getTokenBalance(
+      wallets[i].public_key,
+      tokenAddress
+    );
+    wallets[i].balance = balance;
+    wallets[i].tokenBalance = tokenBalance;
+  }
+  const selectedWallet = wallets.find((wallet) => wallet.id === walletId);
+  console.log(selectedWallet);
+  return {
+    html: `
+    <b>${tokenInfo.baseToken.name} - ${tokenInfo.baseToken.symbol}</b> \n
+Selected Wallet: \n${
+      selectedWallet
+        ? `<code>${
+            wallets.find((wallet) => wallet.id === walletId)?.public_key || ""
+          }</code> | ${
+            wallets.find((wallet) => wallet.id === walletId)?.balance || ""
+          } SUI | ${
+            wallets.find((wallet) => wallet.id === walletId)?.tokenBalance || ""
+          } ${tokenInfo.baseToken.symbol}`
+        : "No wallet selected"
+    } 
+<b>Token Address:</b> \n<code>${tokenAddress}</code> \n
+<b>💵 Price:</b> $${tokenInfo.priceUsd}
+<b>💰 Market Cap:</b> $${numberToKOrM(tokenInfo.marketCap)}
+<b>💧 Liquidity:</b> $${numberToKOrM(tokenInfo.liquidity.usd)}`,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: `📜 SuiScan`,
+            url: `https://suiscan.xyz/mainnet/coin/${tokenAddress}`,
+          },
+          { text: `🔃`, callback_data: "refresh" },
+          {
+            text: `📊 Chart`,
+            url: `https://dexscreener.com/sui/${tokenAddress}`,
+          },
+        ],
+        ...wallets.map((wallet) => {
+          let checkbox = wallet.id === walletId ? `✅` : `◻`;
+          return [
+            {
+              text: `${checkbox} ${shortenAddress(wallet.public_key)} | ${
+                Number(wallet.balance).toFixed(2) || 0
+              } SUI`,
+              callback_data: `${SELECT_SELL_WALLET}_${wallet.id}`,
+            },
+          ];
+        }),
+        [
+          { text: `Sell 25%`, callback_data: `${EXECUTE_SELL}_25` },
+          { text: `Sell 50%`, callback_data: `${EXECUTE_SELL}_50` },
+          { text: `Sell 75%`, callback_data: `${EXECUTE_SELL}_75` },
+          { text: `Sell 100%`, callback_data: `${EXECUTE_SELL}_100` },
+        ],
+        [{ text: `Sell Custom %`, callback_data: INPUT_SELL_AMOUNT }],
+      ],
+    },
+  };
+};
+
 const replyExecuteBuy = async (ctx, amount) => {
   let html, reply_markup;
   if (!sessionData[`${ctx.from.id}`].buy.walletId) {
@@ -390,4 +491,5 @@ module.exports = {
   replyWithdrawSUIResult,
   replyBuyToken,
   replyExecuteBuy,
+  replySellToken,
 };
