@@ -1,4 +1,4 @@
-const { Telegraf } = require("telegraf");
+const { Telegraf, Scenes } = require("telegraf");
 const {
   replyMainMenu,
   replyWalletMenu,
@@ -30,6 +30,13 @@ require("./db");
 
 // Initialize Telegram bot
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+const buyScene = new Scenes.BaseScene("buy");
+const customBuyScene = new Scenes.BaseScene("customBuy");
+const sellScene = new Scenes.BaseScene("sell");
+const customSellScene = new Scenes.BaseScene("customSell");
+const withdrawScene = new Scenes.BaseScene("withdraw");
+
 // Start Command
 bot.start(async (ctx) => {
   const reply = await replyMainMenu(ctx);
@@ -66,6 +73,7 @@ bot.on("callback_query", async (ctx) => {
         });
         break;
       case BUY_TOKEN:
+        ctx.scene.enter("buy");
         await ctx.reply(
           "Reply to this message with the token address that you want to buy:",
           {
@@ -75,18 +83,19 @@ bot.on("callback_query", async (ctx) => {
           }
         );
         // Listen for user's reply
-        bot.on("text", async (ctx) => {
+        buyScene.on("message", async (ctx) => {
           reply = await replyBuyToken(ctx, 0);
           await ctx.replyWithHTML(reply.html, {
             parse_mode: "HTML",
             reply_markup: reply.reply_markup,
           });
           if (!reply.reply_markup.force_reply) {
-            bot.stop();
+            ctx.scene.leave("buy");
           }
         });
         break;
       case SELL_TOKEN:
+        ctx.scene.enter("sell");
         await ctx.reply(
           "Reply to this message with the token address that you want to sell:",
           {
@@ -96,23 +105,24 @@ bot.on("callback_query", async (ctx) => {
           }
         );
         // Listen for user's reply
-        bot.on("text", async (ctx) => {
+        sellScene.on("message", async (ctx) => {
           reply = await replySellToken(ctx, 0);
           await ctx.replyWithHTML(reply.html, {
             parse_mode: "HTML",
             reply_markup: reply.reply_markup,
           });
           if (!reply.reply_markup.force_reply) {
-            bot.stop();
+            ctx.scene.leave("buy");
           }
         });
         break;
       case INPUT_BUY_AMOUNT:
+        ctx.scene.enter("customBuy");
         await ctx.replyWithHTML("Enter the amount of token you want to buy:", {
           parse_mode: "HTML",
           reply_markup: { force_reply: true },
         });
-        bot.on("text", async (ctx) => {
+        customBuyScene.on("message", async (ctx) => {
           let amount = Number(ctx.message.text);
           if (!amount) {
             await ctx.replyWithHTML("Enter correct amount", {
@@ -125,7 +135,7 @@ bot.on("callback_query", async (ctx) => {
               parse_mode: "HTML",
               reply_markup: reply.reply_markup,
             });
-            bot.stop();
+            ctx.scene.leave("customBuy");
           }
         });
         break;
@@ -195,13 +205,14 @@ bot.on("callback_query", async (ctx) => {
           });
           break;
         } else if (/^withdraw_sui_\w+$/.test(action)) {
+          ctx.scene.enter("withdraw");
           const walletId = action.split("_")[2];
           await ctx.replyWithHTML(`Enter SUI amount.`, {
             parse_mode: "HTML",
             reply_markup: { force_reply: true },
           });
           let amount; // withdraw amount
-          bot.on("text", async (ctx) => {
+          withdrawScene.on("message", async (ctx) => {
             console.log("t1", amount);
             if (amount) {
               // if user has alredy input amount, process the withdraw transaction.
@@ -213,7 +224,7 @@ bot.on("callback_query", async (ctx) => {
                 reply_markup: reply.reply_markup,
               });
               console.log("reply");
-              bot.stop();
+              ctx.scene.leave("withdraw");
             } else {
               if (/^\d*\.?\d+$/.test(ctx.message.text)) {
                 amount = ctx.message.text;
