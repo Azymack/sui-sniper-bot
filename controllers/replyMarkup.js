@@ -67,7 +67,7 @@ initSession();
 const replyMainMenu = async (ctx) => {
   let user = await checkUserExists(ctx.from.id);
   if (!user) {
-    await createUser(user);
+    await createUser(ctx.from);
   }
   user = await checkUserExists(ctx.from.id);
 
