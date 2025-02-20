@@ -24,6 +24,7 @@ const {
   EXECUTE_WITHDRAW,
   INPUT_BUY_AMOUNT,
   INPUT_SELL_AMOUNT,
+  CANCEL_WITHDRAW,
 } = require("./config/commands");
 const con = require("./db");
 require("dotenv").config();
@@ -221,6 +222,14 @@ bot.on("callback_query", async (ctx) => {
         break;
       case WITHDRAW_TOKEN:
         await ctx.reply("You chose to withdraw a token.");
+        break;
+      case CANCEL_WITHDRAW:
+        await ctx.scene.leave("withdraw");
+        reply = await replyMainMenu(ctx);
+        await ctx.editMessageText(reply.html, {
+          parse_mode: "HTML",
+          reply_markup: reply.reply_markup,
+        });
         break;
       case NEW_WALLET:
         reply = await replyCreateWallet(ctx);
