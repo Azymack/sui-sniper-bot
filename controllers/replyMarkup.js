@@ -464,30 +464,12 @@ const replyExecuteBuy = async (ctx, amount) => {
       sessionData[`${ctx.from.id}`].buy.walletId
     );
     if (res.success) {
-      html = `Transaction successful.`;
-      reply_markup = {
-        inline_keyboard: [
-          [
-            {
-              text: "View Transaction",
-              url: `${process.env.SUI_EXPLORER}/tx/${res.digest}`,
-            },
-          ],
-        ],
-      };
+      html = `Transaction successful. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+      reply_markup = { inline_keyboard: [[]] };
     } else {
       if (res.digest) {
-        html = `Transaction failed. Please try again.`;
-        reply_markup = {
-          inline_keyboard: [
-            [
-              {
-                text: "View Transaction",
-                url: `${process.env.SUI_EXPLORER}/tx/${res.digest}`,
-              },
-            ],
-          ],
-        };
+        html = `Transaction failed. Please try again. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+        reply_markup = { inline_keyboard: [[]] };
       } else {
         html = "Unexpected Error";
         reply_markup = { inline_keyboard: [] };
@@ -509,30 +491,12 @@ const replyExecuteSell = async (ctx, amount) => {
       sessionData[`${ctx.from.id}`].sell.walletId
     );
     if (res.success) {
-      html = `Transaction successful.`;
-      reply_markup = {
-        inline_keyboard: [
-          [
-            {
-              text: "View Transaction",
-              url: `${process.env.SUI_EXPLORER}/tx/${res.digest}`,
-            },
-          ],
-        ],
-      };
+      html = `Transaction successful. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+      reply_markup = { inline_keyboard: [[]] };
     } else {
       if (res.digest) {
-        html = `Transaction failed. Please try again.`;
-        reply_markup = {
-          inline_keyboard: [
-            [
-              {
-                text: "View Transaction",
-                url: `${process.env.SUI_EXPLORER}/tx/${res.digest}`,
-              },
-            ],
-          ],
-        };
+        html = `Transaction failed. Please try again. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+        reply_markup = { inline_keyboard: [[]] };
       } else {
         html = "Unexpected Error";
         reply_markup = { inline_keyboard: [] };
