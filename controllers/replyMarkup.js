@@ -33,7 +33,7 @@ const {
 } = require("./wallets");
 const { accountAddrOnMainnet, suiAddr } = require("../config/const");
 const con = require("../db.js");
-const { buy } = require("./swap.js");
+const { buy, sell } = require("./swap.js");
 require("dotenv").config();
 
 let sessionData;
@@ -481,6 +481,33 @@ const replyExecuteBuy = async (ctx, amount) => {
   return { html, reply_markup };
 };
 
+const replyExecuteSell = async (ctx, amount) => {
+  let html, reply_markup;
+  if (!sessionData[`${ctx.from.id}`].sell.walletId) {
+    html = "Select wallet";
+    reply_markup = { inline_keyboard: [] };
+  } else {
+    const res = await sell(
+      sessionData[`${ctx.from.id}`].sell.tokenAddress,
+      amount,
+      sessionData[`${ctx.from.id}`].sell.walletId
+    );
+    if (res.success) {
+      html = `Transaction successful. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+      reply_markup = { inline_keyboard: [] };
+    } else {
+      if (res.digest) {
+        html = `Transaction failed. Please try again. \n <a href="${process.env.SUI_EXPLORER}/tx/${res.digest}">View transaction</a>`;
+        reply_markup = { inline_keyboard: [] };
+      } else {
+        html = "Unexpected Error";
+        reply_markup = { inline_keyboard: [] };
+      }
+    }
+  }
+  return { html, reply_markup };
+};
+
 module.exports = {
   replyMainMenu,
   replyWalletMenu,
@@ -492,4 +519,5 @@ module.exports = {
   replyBuyToken,
   replyExecuteBuy,
   replySellToken,
+  replyExecuteSell,
 };

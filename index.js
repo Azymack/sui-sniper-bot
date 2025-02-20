@@ -10,6 +10,7 @@ const {
   replyWithdrawSUIResult,
   replyExecuteBuy,
   replySellToken,
+  replyExecuteSell,
 } = require("./controllers/replyMarkup");
 const {
   BUY_TOKEN,
@@ -22,6 +23,7 @@ const {
   NEW_WALLETS,
   EXECUTE_WITHDRAW,
   INPUT_BUY_AMOUNT,
+  INPUT_SELL_AMOUNT,
 } = require("./config/commands");
 const con = require("./db");
 require("dotenv").config();
@@ -129,14 +131,17 @@ bot.on("callback_query", async (ctx) => {
         break;
       case INPUT_BUY_AMOUNT:
         ctx.scene.enter("customBuy");
-        await ctx.replyWithHTML("Enter the amount of token you want to buy:", {
-          parse_mode: "HTML",
-          reply_markup: { force_reply: true },
-        });
+        await ctx.replyWithHTML(
+          "Enter the amount of SUI you want to buy tokens for:",
+          {
+            parse_mode: "HTML",
+            reply_markup: { force_reply: true },
+          }
+        );
         customBuyScene.on("message", async (ctx) => {
           let amount = Number(ctx.message.text);
           if (!amount) {
-            await ctx.replyWithHTML("Enter correct amount", {
+            await ctx.replyWithHTML("Enter number only", {
               parse_mode: "HTML",
               reply_markup: { force_reply: true },
             });
@@ -147,6 +152,37 @@ bot.on("callback_query", async (ctx) => {
               reply_markup: reply.reply_markup,
             });
             ctx.scene.leave("customBuy");
+          }
+        });
+        break;
+      case INPUT_SELL_AMOUNT:
+        ctx.scene.enter("customSell");
+        await ctx.replyWithHTML(
+          "Enter your desired percentage of tokens you want to sell.",
+          {
+            parse_mode: "HTML",
+            reply_markup: { force_reply: true },
+          }
+        );
+        customSellScene.on("message", async (ctx) => {
+          let amount = Number(ctx.message.text);
+          if (!amount) {
+            await ctx.replyWithHTML("Enter number only.", {
+              parse_mode: "HTML",
+              reply_markup: { force_reply: true },
+            });
+          } else if (amount > 100) {
+            await ctx.replyWithHTML("Enter number smaller than 100.", {
+              parse_mode: "HTML",
+              reply_markup: { force_reply: true },
+            });
+          } else {
+            reply = await replyExecuteSell(ctx, amount);
+            await ctx.replyWithHTML(reply.html, {
+              parse_mode: "HTML",
+              reply_markup: reply.reply_markup,
+            });
+            ctx.scene.leave("customSell");
           }
         });
         break;
@@ -267,6 +303,22 @@ bot.on("callback_query", async (ctx) => {
         } else if (/^execute_buy_\w+$/.test(action)) {
           let amount = action.split("_")[2];
           reply = await replyExecuteBuy(ctx, amount);
+          await ctx.replyWithHTML(reply.html, {
+            parse_mode: "HTML",
+            reply_markup: reply.reply_markup,
+          });
+        } else if (/^select_s_wallet_\w+$/.test(action)) {
+          const walletId = action.split("_")[3];
+          console.log(walletId, "walletId");
+          reply = await replySellToken(ctx, walletId);
+          await ctx.editMessageText(reply.html, {
+            parse_mode: "HTML",
+            reply_markup: reply.reply_markup,
+          });
+          break;
+        } else if (/^execute_sell_\w+$/.test(action)) {
+          let amount = action.split("_")[2];
+          reply = await replyExecuteSell(ctx, amount);
           await ctx.replyWithHTML(reply.html, {
             parse_mode: "HTML",
             reply_markup: reply.reply_markup,
