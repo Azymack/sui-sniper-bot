@@ -75,8 +75,11 @@ const getTokenBalance = async (publicKey, tokenAddress) => {
       owner: publicKey,
       coinType: tokenAddress,
     });
-    console.log(balance, "balance");
-    const tokenBalance = Number(balance.totalBalance) / 1e9;
+    const tokenMetadata = await suiClient.getCoinMetadata({
+      coinType: tokenAddress,
+    });
+    const decimals = tokenMetadata.decimals;
+    const tokenBalance = Number(balance.totalBalance) / Math.pow(10, decimals);
     return tokenBalance.toFixed(2);
   } catch (err) {
     console.log(err);

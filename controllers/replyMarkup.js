@@ -305,13 +305,11 @@ const replyBuyToken = async (ctx, walletId) => {
     <b>${tokenInfo.baseToken.name} - ${tokenInfo.baseToken.symbol}</b> \n
 Selected Wallet: \n${
       selectedWallet
-        ? `<code>${
-            wallets.find((wallet) => wallet.id === walletId)?.public_key || ""
-          }</code> | ${
-            wallets.find((wallet) => wallet.id === walletId)?.balance || ""
-          } SUI | ${
-            wallets.find((wallet) => wallet.id === walletId)?.tokenBalance || ""
-          } ${tokenInfo.baseToken.symbol}`
+        ? `<code>${selectedWallet?.public_key || ""}</code> | ${
+            selectedWallet?.balance || ""
+          } SUI | ${selectedWallet?.tokenBalance || ""} ${
+            tokenInfo.baseToken.symbol
+          }`
         : "No wallet selected"
     } 
 <b>Token Address:</b> \n<code>${tokenAddress}</code> \n
