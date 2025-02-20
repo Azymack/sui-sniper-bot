@@ -25,7 +25,6 @@ const sell = async (tokenAddress, amount, walletId) => {
       .query("SELECT * FROM wallets WHERE id = ?", [walletId]);
     const wallet = rows[0];
     const keyPair = getKeyPairFromSecretKey(wallet.private_key);
-    amount = Number(amount) * suiDecimal;
     const res = await sellToken(amount, tokenAddress, keyPair);
     console.log(res, " ==================");
     return res;

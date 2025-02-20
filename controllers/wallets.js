@@ -69,6 +69,13 @@ const getSuiBalance = async (publicKey) => {
   return suiBalance.toFixed(2);
 };
 
+const getSuiBalanceInWei = async (publicKey) => {
+  const balance = await suiClient.getBalance({
+    owner: publicKey,
+  });
+  return Number(balance.totalBalance);
+};
+
 const getTokenBalance = async (publicKey, tokenAddress) => {
   try {
     const balance = await suiClient.getBalance({
@@ -81,6 +88,21 @@ const getTokenBalance = async (publicKey, tokenAddress) => {
     const decimals = tokenMetadata.decimals;
     const tokenBalance = Number(balance.totalBalance) / Math.pow(10, decimals);
     return tokenBalance.toFixed(2);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const getTokenBalanceInWei = async (publicKey, tokenAddress) => {
+  try {
+    const balance = await suiClient.getBalance({
+      owner: publicKey,
+      coinType: tokenAddress,
+    });
+    const tokenMetadata = await suiClient.getCoinMetadata({
+      coinType: tokenAddress,
+    });
+    return Number(balance.totalBalance);
   } catch (err) {
     console.log(err);
   }
@@ -138,5 +160,7 @@ module.exports = {
   getSuiBalance,
   getTokenBalance,
   validateWithdrawSUI,
+  getSuiBalanceInWei,
   executeWithdrawSUI,
+  getTokenBalanceInWei,
 };
